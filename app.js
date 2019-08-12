@@ -1,0 +1,63 @@
+require('dotenv').config()
+var createError = require('http-errors');
+var express = require('express');
+var app = express();
+var bodyParser = require('body-parser')
+var path = require('path');
+var cookieParser = require('cookie-parser');
+var session = require('express-session')
+var logger = require('morgan');
+var indexRouter = require('./routes/index');
+var usersRouter = require('./routes/users');
+var pgSession = require('connect-pg-simple')(session)
+var pool = require('./db/index').getPool()
+var cors = require('cors')
+
+// view engine setup
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'jade');
+
+app.use(cors({origin:true,credentials: true}))
+app.use(logger('dev'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(bodyParser.urlencoded({extended:false}))
+app.use(bodyParser.json())
+
+
+app.use(session(
+  {
+    store: new pgSession({
+      pool : pool,                // Connection pool
+      tableName: 'session'
+    }),
+    secret: '654646sd54f65sa4f6asdfas56d4fa6sdf4as5d4fa6s5df4a6sdf4',
+    resave: true,
+    cookie: { secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 }, // 30 days
+    saveUninitialized: true,
+  }
+))
+
+app.use('/', indexRouter);
+app.use('/users', usersRouter);
+
+// catch 404 and forward to error handler
+app.use(function(req, res, next) {
+  next(createError(404));
+});
+
+
+// error handler
+app.use(function(err, req, res, next) {
+  // set locals, only providing error in development
+  res.locals.message = err.message;
+  res.locals.error = req.app.get('env') === 'development' ? err : {};
+
+  // render the error page
+  res.status(err.status || 500);
+  res.render('error');
+});
+
+module.exports = app;
